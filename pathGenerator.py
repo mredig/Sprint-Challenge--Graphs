@@ -74,16 +74,17 @@ class PathGenerator():
                 proposedFurthest = self.furthestStopInDirection(startingIntersection, direction, playerVisited)
                 proposedFurthestRooms[direction] = proposedFurthest
 
-            for direction in unexplored:
                 # traverse furthest stop
-                proposedFurthest = proposedFurthestRooms[direction]
                 proposedPaths[direction] = PathWrapper(self.shortestAbsolutePath(direction, proposedFurthest))
                 proposedVisited = playerVisited.union(proposedPaths[direction].path)
                 # if intersection, recurse with traverseall
                 if self.isRoomIntersection(proposedPaths[direction].path[-1]):
                     proposedPaths[direction].appendToPath(self.traverseAllIntersectionPaths(proposedPaths[direction].path[-1], proposedVisited))
+
+            for direction in unexplored:
                 # if dead end, traverse back to intersection
                 proposedPaths[direction].setReturnPath(self.shortestAbsolutePath(proposedPaths[direction].path[-1], startingIntersection))
+
             # compare each proposedPath
             proposedArray = [proposedPaths[direction] for direction in proposedPaths]
             def sorter(elem):
