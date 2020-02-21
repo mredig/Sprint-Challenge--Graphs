@@ -8,6 +8,7 @@ import sys
 sys.path.append('structs/')
 from Queue import Queue
 from Stack import Stack
+import asyncio
 
 
 class PathWrapper():
@@ -20,6 +21,8 @@ class PathWrapper():
         self.returnPath = returnPath
 
     def appendToPath(self, newPath):
+        # if newPath is None:
+        #     return
         if self.path[-1] == newPath[0]:
             self.path += newPath[1:]
         else:
@@ -46,7 +49,7 @@ class PathGenerator():
         playerVisited = set(superPath)
         # while len(playerVisited) != len(self.worldmap.rooms):
         
-        superPath = self.traverseAllIntersectionPaths(0, playerVisited)
+        superPath = asyncio.run(self.traverseAllIntersectionPaths(0, playerVisited))
         # print(superPath)
         # remove rooms from the end of thisPath until playerVisited is not the same size as total rooms, then undo one step
         choppedValue = superPath.pop()
@@ -56,14 +59,16 @@ class PathGenerator():
 
         return self.absolutePathToRelative(superPath)
 
-    def traverseAllIntersectionPaths(self, startingIntersection, playerVisited):
+    async def traverseAllIntersectionPaths(self, startingIntersection, playerVisited):
         playerVisited = playerVisited.copy()
 
         # establish thisPath
         thisPath = [startingIntersection]
         playerVisited = playerVisited.union(thisPath)
         # while finalized connections still has unexplored paths
+
         while len(self.unexploredConnectionsToRoom(startingIntersection, playerVisited)) > 0:
+            asyncCalls = []
             # establish proposedPaths[direction: totalPathInDirection]
             proposedPaths = {}
             proposedFurthestRooms = {}
@@ -79,7 +84,19 @@ class PathGenerator():
                 proposedVisited = playerVisited.union(proposedPaths[direction].path)
                 # if intersection, recurse with traverseall
                 if self.isRoomIntersection(proposedPaths[direction].path[-1]):
-                    proposedPaths[direction].appendToPath(self.traverseAllIntersectionPaths(proposedPaths[direction].path[-1], proposedVisited))
+                    asyncCalls.append(self.traverseAllIntersectionPaths(proposedPaths[direction].path[-1], proposedVisited))
+                    # proposedPaths[direction].appendToPath(self.traverseAllIntersectionPaths(proposedPaths[direction].path[-1], proposedVisited))
+
+            # await async calls
+            asyncReturns = await asyncio.gather(
+                *asyncCalls
+            )
+            # rectify async returns
+            for ar in asyncReturns:
+                for direction in proposedPaths:
+                    if proposedPaths[direction].path[-1] == ar[0]:
+                        proposedPaths[direction].appendToPath(ar)
+                        break
 
             for direction in unexplored:
                 # if dead end, traverse back to intersection
